@@ -68,14 +68,17 @@ namespace TSW2_Livery_Manager
 
             LoadCfg();
 
+            InitializeComponent();
+            DataContext = new Data();
+
             if (!Cfg.ContainsKey("NoUpdate") || Cfg["NoUpdate"] != "1")
             {
                 try
                 {
-                    Log.AddLogMessage("Checking for updates...", "MW::<init>");
+                    LogMessage("Checking for updates...", "MW::<init>");
                     WebRequest UpdateRequest = WebRequest.Create("https://raw.githubusercontent.com/RagingLightning/TSW2-Livery-Manager/deploy/version.dat");
                     string UpdateResponse = new StreamReader(UpdateRequest.GetResponse().GetResponseStream()).ReadToEnd();
-                    Log.AddLogMessage($"Got version information: {VERSION}->{UpdateResponse}", "MW::<init>");
+                    LogMessage($"Got version information: {VERSION}->{UpdateResponse}", "MW::<init>");
                     string[] NewVersion = UpdateResponse.Split('.');
                     string[] CurrentVersion = VERSION.Split('.');
                     for (int i = 0; i < NewVersion.Length; i++)
@@ -88,32 +91,29 @@ namespace TSW2_Livery_Manager
                 }
                 catch (WebException e)
                 {
-                    Log.AddLogMessage($"Unable to check for updates: {e.Message}", "MW::<init>", Log.LogLevel.DEBUG);
+                    LogMessage($"Unable to check for updates: {e.Message}", "MW::<init>", Log.LogLevel.DEBUG);
                 }
 
             }
 
-            InitializeComponent();
-            DataContext = new Data();
-
             if (Cfg.ContainsKey("GamePath"))
             {
-                Log.AddLogMessage("Loading GamePath Data...", "MW::<init>");
+                LogMessage("Loading GamePath Data...", "MW::<init>");
                 if (File.Exists(Cfg["GamePath"])) {
                     txtGameDir.Text = Cfg["GamePath"];
                     string GameStatus = LoadGameLiveries();
-                    if (GameStatus != "OK") lblMessage.Content = $"ERROR WHILE LOADING GAME LIVERIES:\n{GameStatus}";
+                    if (GameStatus != "OK") LogMessage($"ERROR WHILE LOADING GAME LIVERIES:\n{GameStatus}");
                 }
                 else
                 {
-                    lblMessage.Content = $"ERROR WHILE LOADING GAME LIVERIES, please ensure you:\n - have created at least one livery in the game\n\nif you need help, please @RagingLightning on discord or creare an issue on github";
+                    LogMessage($"ERROR WHILE LOADING GAME LIVERIES, please ensure you:\n - have created at least one livery in the game\n\nif you need help, please @RagingLightning on discord or creare an issue on github");
                 }
             }
             if (Cfg.ContainsKey("LibraryPath"))
             {
                 txtLibDir.Text = Cfg["LibraryPath"];
                 string LibraryStatus = UpdateLibraryLiveries();
-                if (LibraryStatus != "OK") lblMessage.Content = $"ERROR WHILE LOADING LIBRARY LIVERIES:\n{LibraryStatus}";
+                if (LibraryStatus != "OK") LogMessage($"ERROR WHILE LOADING LIBRARY LIVERIES:\n{LibraryStatus}");
             }
 
         }
@@ -154,6 +154,24 @@ namespace TSW2_Livery_Manager
                 File.AppendAllText(ConfigPath, $"{key}={Cfg[key]};");
             }
             Log.AddLogMessage("Config saved", "MW::SaveCfg", Log.LogLevel.DEBUG);
+        }
+
+        private void LogMessage(string message, string stack, Log.LogLevel logLevel)
+        {
+            Log.AddLogMessage(message, stack, logLevel);
+            if (logLevel < Log.LogLevel.DEBUG)
+            {
+                lblMessage.AppendText($"{message}\n");
+                lblMessage.ScrollToEnd();
+            }
+        }
+        private void LogMessage(string message, string stack)
+        {
+            LogMessage(message, stack, Log.LogLevel.INFO);
+        }
+        private void LogMessage(string message)
+        {
+            LogMessage(message, "", Log.LogLevel.INFO);
         }
 
         private int LocateInByteArray(byte[] hay, byte[] needle)
@@ -229,8 +247,8 @@ namespace TSW2_Livery_Manager
             SplitFile.Clear();
             try
             {
-                Log.AddLogMessage("Loading game livery file...","MW::LoadGameLiveries");
-                Log.AddLogMessage($"File Path: {Cfg["GamePath"]}", "MW::LoadGameLiveries", Log.LogLevel.DEBUG);
+                LogMessage("Loading game livery file...","MW::LoadGameLiveries");
+                LogMessage($"File Path: {Cfg["GamePath"]}", "MW::LoadGameLiveries", Log.LogLevel.DEBUG);
                 byte[] LiveryFile = File.ReadAllBytes(Cfg["GamePath"]);
 
                 int HeaderEnd = LocateInByteArray(LiveryFile, SOL);
@@ -247,7 +265,7 @@ namespace TSW2_Livery_Manager
                 SplitFile.Add(0, Header);
                 Log.AddLogMessage($"Extracted game livery header (bytes 0 - {HeaderEnd})", "MW::LoadGameLiveries", Log.LogLevel.DEBUG);
 
-                Log.AddLogMessage("Extracting game liveries...", "MW::LoadGameLiveries");
+                LogMessage("Extracting game liveries...", "MW::LoadGameLiveries");
                 int LiveryEnd = 0;
 
                 for (int i = 1; i <= MAX_GAME_LIVERIES; i++)
@@ -266,7 +284,7 @@ namespace TSW2_Livery_Manager
                     SplitFile.Add(i, LiveryData);
                     Log.AddLogMessage($"Extracted livery {i} (bytes {LiveryStart} - {LiveryEnd})","MW::LoadGameLiveries",Log.LogLevel.DEBUG);
                 }
-                Log.AddLogMessage("All game liveries extracted successfully", "MW::LoadGameLiveries");
+                LogMessage("All game liveries extracted successfully", "MW::LoadGameLiveries");
 
                 byte[] Footer = new byte[LiveryFile.Length - LiveryEnd];
                 Array.Copy(LiveryFile, LiveryEnd, Footer, 0, Footer.Length);
@@ -297,7 +315,7 @@ namespace TSW2_Livery_Manager
 
         private string UpdateLocalGameLiveries()
         {
-            Log.AddLogMessage("Updating local game liveries...", "MW::UpdateLocalGameLiveries");
+            LogMessage("Updating local game liveries...", "MW::UpdateLocalGameLiveries");
             lstGameLiveries.Items.Clear();
             for (int i = 1; i <= MAX_GAME_LIVERIES; i++)
             {
@@ -314,7 +332,7 @@ namespace TSW2_Livery_Manager
 
         private string UpdateLibraryLiveries()
         {
-            Log.AddLogMessage("Updating library liveries...", "MW::UpdateLibraryLiveries");
+            LogMessage("Updating library liveries...", "MW::UpdateLibraryLiveries");
             lstLibraryLiveries.Items.Clear();
             DirectoryInfo Info = new DirectoryInfo(Cfg["LibraryPath"]);
             foreach (FileInfo file in Info.GetFiles("*.tsw2liv"))
@@ -389,7 +407,6 @@ namespace TSW2_Livery_Manager
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             byte[] LiveryData = GetSelectedGameLivery();
             if(LiveryData != null)
             {
@@ -411,12 +428,12 @@ namespace TSW2_Livery_Manager
                 Log.AddLogMessage($"Exporting to file {FileName}.tsw2liv", "MW::ExportClick", Log.LogLevel.DEBUG);
                 File.WriteAllBytes($"{Cfg["LibraryPath"]}\\{FileName}.tsw2liv", LiveryData);
                 string Status = UpdateLibraryLiveries();
-                if (Status != "OK") lblMessage.Content = Status;
+                if (Status != "OK") lblMessage.AppendText(Status);
             }
             else
             {
                 Log.AddLogMessage("Livery data for export empty, aborting...", "MW::ExportClick", Log.LogLevel.WARNING);
-                lblMessage.Content = "Before exporting, please ensure you:\n - Have a Game Livery selected";
+                lblMessage.AppendText("Before exporting, please ensure you:\n - Have a Game Livery selected");
             }
         }
 
@@ -424,7 +441,6 @@ namespace TSW2_Livery_Manager
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             byte[] OldData = GetSelectedGameLivery();
             if (OldData == null && lstGameLiveries.SelectedItem != null && lstGameLiveries.SelectedIndex != -1 && lstLibraryLiveries.SelectedItem != null && lstLibraryLiveries.SelectedIndex != -1)
             {
@@ -433,18 +449,18 @@ namespace TSW2_Livery_Manager
                 byte[] LiveryData = File.ReadAllBytes($"{Cfg["LibraryPath"]}\\{FileName}");
                 if (!SetSelectedGameLivery(LiveryData))
                 {
-                    lblMessage.Content = "!ImportWriteFail! - Something went wrong\n - if the issue persists, create an issue on github\n\nif you need help, please @RagingLightning on discord or creare an issue on github";
+                    lblMessage.AppendText("!ImportWriteFail! - Something went wrong\n - if the issue persists, create an issue on github\n\nif you need help, please @RagingLightning on discord or creare an issue on github");
                 }
                 else
                 {
                     string Status = UpdateLocalGameLiveries();
-                    if (Status != "OK") lblMessage.Content = Status;
+                    if (Status != "OK") lblMessage.AppendText(Status);
                 }
             }
             else
             {
                 Log.AddLogMessage("Import conditions not met, aborting...", "MW::ImportClick", Log.LogLevel.WARNING);
-                lblMessage.Content = "Before importing, please ensure you:\n - Have an empty Game Livery slot selected\n - Have a Library Livery selected\n\nif you need help, please @RagingLightning on discord or creare an issue on github";
+                lblMessage.AppendText("Before importing, please ensure you:\n - Have an empty Game Livery slot selected\n - Have a Library Livery selected\n\nif you need help, please @RagingLightning on discord or creare an issue on github");
             }
         }
 
@@ -452,7 +468,7 @@ namespace TSW2_Livery_Manager
         {
             if (!jExportWarning)
             {
-                lblMessage.Content = "IMPORTANT!! - This feature is very experimental, make sure you have a backup of your liveries!!";
+                lblMessage.AppendText("IMPORTANT!! - This feature is very experimental, make sure you have a backup of your liveries!!");
                 Log.AddLogMessage("First Click on JSON Export, warning and ignoring...","MW::JExportClick", Log.LogLevel.DEBUG);
                 jExportWarning = true;
             }
@@ -471,7 +487,7 @@ namespace TSW2_Livery_Manager
             }
             else
             {
-                lblMessage.Content = "ERROR: 'GvasConverter.exe' could not be found, please make sure it is in a folder called GVASConverter.";
+                lblMessage.AppendText("ERROR: 'GvasConverter.exe' could not be found, please make sure it is in a folder called GVASConverter.");
                 Log.AddLogMessage("Second Click on JSON Export, unable to find gvas coverter, aborting...", "MW::JExportClick", Log.LogLevel.WARNING);
                 jExportWarning = false;
             }
@@ -481,7 +497,7 @@ namespace TSW2_Livery_Manager
         {
             if (!jImportWarning)
             {
-                lblMessage.Content = "IMPORTANT!! - This feature is very experimental, make sure you have a backup of your liveries!!";
+                lblMessage.AppendText("IMPORTANT!! - This feature is very experimental, make sure you have a backup of your liveries!!");
                 Log.AddLogMessage("First Click on JSON Import, warning and ignoring...", "MW::JImportClick", Log.LogLevel.DEBUG);
                 jImportWarning = true;
             }
@@ -500,7 +516,7 @@ namespace TSW2_Livery_Manager
             }
             else
             {
-                lblMessage.Content = "ERROR: 'GvasConverter.exe' could not be found, please make sure it is in a folder called GVASConverter.";
+                lblMessage.AppendText("ERROR: 'GvasConverter.exe' could not be found, please make sure it is in a folder called GVASConverter.");
                 Log.AddLogMessage("Second Click on JSON Import, unable to find gvas coverter, aborting...", "MW::JImportClick", Log.LogLevel.WARNING);
                 jImportWarning = false;
             }
@@ -515,7 +531,6 @@ namespace TSW2_Livery_Manager
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             VistaFolderBrowserDialog Dialog = new VistaFolderBrowserDialog();
             Dialog.Description = "Select a folder for all your liveries to be exported to";
             if (Dialog.ShowDialog() == true)
@@ -530,7 +545,7 @@ namespace TSW2_Livery_Manager
                 Log.AddLogMessage($"Changed library path to {Cfg["LibraryPath"]}", "MW::LibDirClick");
             }
             string Status = UpdateLibraryLiveries();
-            if (Status != "OK") lblMessage.Content = Status;
+            if (Status != "OK") lblMessage.AppendText(Status);
         }
 
         private void lstGame_Change(object sender, SelectionChangedEventArgs e)
@@ -542,7 +557,6 @@ namespace TSW2_Livery_Manager
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             VistaFolderBrowserDialog Dialog = new VistaFolderBrowserDialog();
             Dialog.Description = "Select the TSW2 game folder";
             if (Dialog.ShowDialog() == true)
@@ -557,14 +571,13 @@ namespace TSW2_Livery_Manager
                 Log.AddLogMessage($"Changed game path to {Cfg["GamePath"]}", "MW::GameDirClick");
             }
             string Status = LoadGameLiveries();
-            if (Status != "OK") lblMessage.Content = Status;
+            if (Status != "OK") lblMessage.AppendText(Status);
         }
 
         private void btnBackup_Click(object sender, RoutedEventArgs e)
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             SaveFileDialog Dialog = new SaveFileDialog();
             Dialog.InitialDirectory = Cfg["LibraryPath"];
             Dialog.Filter = "TSW2 Livery Backup (*.tsw2bak)|*.tsw2bak";
@@ -581,7 +594,6 @@ namespace TSW2_Livery_Manager
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             OpenFileDialog Dialog = new OpenFileDialog();
             Dialog.Filter = "TSW2 Livery Backup  (*.tsw2bak)|*.tsw2bak";
             Dialog.DefaultExt = "*.tsw2bak";
@@ -593,7 +605,7 @@ namespace TSW2_Livery_Manager
                 Log.AddLogMessage($"Restored from backup: {Dialog.FileName}", "MW::RestoreClick");
             }
             string Status = LoadGameLiveries();
-            if (Status != "OK") lblMessage.Content = Status;
+            if (Status != "OK") lblMessage.AppendText(Status);
         }
 
         private void btnSave_Click(object sender, RoutedEventArgs e)
@@ -601,7 +613,6 @@ namespace TSW2_Livery_Manager
             jImportWarning = false;
             jExportWarning = false;
             Log.AddLogMessage("Saving local game liveries to disk...", "MW::SaveClick");
-            lblMessage.Content = "";
             byte[] AllData = SplitFile[0];
             for (int i = 1; i < MAX_GAME_LIVERIES; i++)
             {
@@ -618,20 +629,19 @@ namespace TSW2_Livery_Manager
             File.WriteAllBytes(Cfg["GamePath"], AllData);
             Log.AddLogMessage("Saved local game liveries to disk", "MW::SaveClick", Log.LogLevel.DEBUG);
             string Status = LoadGameLiveries();
-            if (Status != "OK") lblMessage.Content = Status;
+            if (Status != "OK") lblMessage.AppendText(Status);
         }
 
         private void btnReset_Click(object sender, RoutedEventArgs e)
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             string Status = LoadGameLiveries();
-            if (Status != "OK") { lblMessage.Content = Status; }
+            if (Status != "OK") { lblMessage.AppendText(Status); }
             else
             {
                 Status = UpdateLibraryLiveries();
-                if (Status != "OK") lblMessage.Content = Status;
+                if (Status != "OK") lblMessage.AppendText(Status);
             }
         }
 
@@ -639,17 +649,16 @@ namespace TSW2_Livery_Manager
         {
             jImportWarning = false;
             jExportWarning = false;
-            lblMessage.Content = "";
             if (lstGameLiveries.SelectedItem == null ||lstGameLiveries.SelectedIndex == -1)
             {
                 Log.AddLogMessage($"Deleting game livery {lstGameLiveries.SelectedItem}...", "MW::DeleteClick");
-                lblMessage.Content = "Something went wrong, please ensure you:\n - Have a Game Livery selected\n\nif you need help, please @RagingLightning on discord or creare an issue on github";
+                lblMessage.AppendText("Something went wrong, please ensure you:\n - Have a Game Livery selected\n\nif you need help, please @RagingLightning on discord or creare an issue on github");
                 return;
             }
             int Id = int.Parse(lstGameLiveries.SelectedItem.ToString().Split('(')[1].Split(')')[0]);
             SplitFile.Remove(Id);
             string Status = UpdateLocalGameLiveries();
-            if (Status != "OK") lblMessage.Content = Status;
+            if (Status != "OK") lblMessage.AppendText(Status);
         }
     }
 
